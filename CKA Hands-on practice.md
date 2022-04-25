@@ -187,7 +187,31 @@ Get YAML definition file of a specified deployment
 kubectl create deployment --image=<image-name> <deployment-name> --replicas=<x> --dry-run=client -o yaml > output.yaml
 ```
 
+## Services
 
+get services
+
+```sh
+kubectl get svc
+```
+
+more details
+
+```
+kubectl descrie service <service-name>
+```
+
+Create a new service for deployment
+
+```
+kubectl expose deployment <deployment-name> --name=webapp-service --target-port=8080 --type=NodePort --port=8080 --dry-run=client -o yaml > <file-name.yaml>
+```
+
+And then:
+
+```sh
+kubectl apply -f <file-name.yaml>
+```
 
 
 
