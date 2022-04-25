@@ -245,3 +245,18 @@ get pods from all namespaces
 kubectl get pods --all-namespaces
 ```
 
+## Imperative vs declarative
+
+Create pod and a cluster ip service for it
+
+```sh
+kubectl run <pod-name> --image=<image-name> --labels=<key>=<value>
+kubectl expose --type=ClusterIP --name=<service-name> --port=80 --target-port=80
+```
+
+>  Dry run  example
+>
+> ```sh
+> kubectl create deployment redis-deploy --image=redis --namespace=dev-ns --dry-run=client -o yaml > elo.yaml
+> ```
+

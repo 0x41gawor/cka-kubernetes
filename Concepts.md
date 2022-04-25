@@ -110,3 +110,7 @@ kubectl config set-context $(kubectl config current context) --namespace=<name>
 
 To specify (limit, guarantee) resources in the namespace create resource quota.
 
+# Imperative vs Declarative
+
+<img src="img/8.png" style="zoom:75%;" />
+
