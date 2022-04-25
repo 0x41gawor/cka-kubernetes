@@ -72,3 +72,41 @@ This is not what users want. They want a single url accessible from the Internet
 
 You can just put new VM with load balancing software and configure it, but on the Cloud Supported platform you can use native Kubernetes load balancer.
 
+## Namespaces
+
+In Kubernetes, *namespaces* provides a mechanism for isolating groups of resources within a single cluster. Names of resources need to be unique within a namespace, but not across namespaces. Namespace-based scoping is applicable only for namespaced objects *(e.g. Deployments, Services, etc)* and not for cluster-wide objects *(e.g. StorageClass, Nodes, PersistentVolumes, etc)*.
+
+> For example you might want to divide cluster resources between `prod` and `dev`, and to be sure that  while working in `dev` you don't accidentally modify `prod` resources.
+
+Each of namespaces can have its own set of policies deciding who can do what and you can also assing **quota** of resources to a namespace so each namespace is guaranteed a certain amount of resources, but can't use more that its allowed limit.
+
+**DNS**
+
+Inside a namespace objects can to refer to each other by they "*firstname*s"
+
+```sh
+mysql.connect("db-service")
+```
+
+But to a object outside the namespace you need to use fully qualified name.
+
+```
+mysql.connect("db-service.namespace-name.svc.cluster.local")
+```
+
+**default namespaces**
+
+Kubernetes within installation creates 3 namepsaces: default, kube-system, kube-public. When you run `kubectl get pods` or any command it happens for `default` namespace. You can specify the target namespace with `--namespace <name>` option.
+
+> You can specify namespace in pod definition file in `metadata` section.
+
+If you don't want to specify namespace in option each time you can switch context
+
+```sh
+kubectl config set-context $(kubectl config current context) --namespace=<name>
+```
+
+**resource quota**
+
+To specify (limit, guarantee) resources in the namespace create resource quota.
+

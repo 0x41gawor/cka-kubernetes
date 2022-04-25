@@ -213,5 +213,35 @@ And then:
 kubectl apply -f <file-name.yaml>
 ```
 
+## Namespaces
 
+list namespaces
+
+```sh
+kubectl get ns
+```
+
+> count namespaces
+>
+> ```sh
+> kubectl get ns --no-header | wc -l 
+> ```
+
+get pod from specific namespace
+
+```sh
+kubectl get pods -n <namespace-name> --no-headers
+```
+
+run pod in specific namespace
+
+```sh
+kubectl run redis --image=redis --namespace==<name>
+```
+
+get pods from all namespaces
+
+```sh
+kubectl get pods --all-namespaces
+```
 
