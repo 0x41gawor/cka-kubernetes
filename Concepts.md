@@ -114,3 +114,118 @@ To specify (limit, guarantee) resources in the namespace create resource quota.
 
 <img src="img/8.png" style="zoom:75%;" />
 
+# Annotations
+
+In metadata section, the one when you add labels you can add non-identifying* data just describing the object. This data is annotations. You can put there app author, build version, help desk email etc.
+
+https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+
+> *In contrary to labels which are used to identify things.
+
+# Scheduling
+
+## Taints and tolerations
+
+**Analogy**
+
+We have a big farm of potatoes. As you know farmers need to fight with some species of worms. In order to make potatoes not edible by the worms they use some kind of spray (taint in k8s), so the smell will fright off some evil species of worms. We say that these species are **intolerant** to this **taint**. 
+
+On the other hand some species of worms are good for our potatoes and we don't want to fright off them. In order to do that we use taint for which smell these species are **tolerant**.
+
+Take on mind that on our farm we can have multiple kinds of potatoes and we can spray each kind with different **taint**, resulting in different set of worms that are **tolerant** and **intolerant**.
+
+**Kubernetes**
+
+In K8S Taints and Tolerations are used to set restriction on what pods can be scheduled on a node. 
+
+>  So we just spray out nodes with some taint :D
+
+**Example**
+
+Lets say we have 3 worker nodes and 4 pods. By default kube-scheduler balances the pods equally.
+
+But lets say we have a dedicated resources on workerNode1 for our frontend app. 
+
+We can spray our WorkerNode1 with taint. Lets say the `blue`taint.
+
+By default pods are intolerant, so none of the pods can be placed on `blue` sprayed node as no one on them have tolerance for `Taint=blue`.
+
+Now we just need to make our desired pod with frontend app to be tolerant to blue.
+
+**Remember**
+
+This mechanism is only to restrict. It will not guarantee you that pod tolerant to some taint will be always placed on the node tainted with it. 
+
+It does not tell the pod where to go, it just tells node which pods accept.
+
+If your goal is to restrict pods to certain nodes it is achieved through *Affinity* mechanism.
+
+**Master node**
+
+K8s in default setup taints master node, so by default no non-kube-system pod can be placed on master node.
+
+It is a good practice not to load master node with any worker pods 
+
+## Node Selectors
+
+You can label nodes and then use this labels in pod-definition file so kube-sched will read them and use.
+
+>For example you have 1 large PC (node01) and two small PCs and you want your pod to be on the large PC.
+>
+>```sh
+>kubectl label nodes node01 size=large
+>```
+>
+>And then in pod definition in `spec`
+>
+>```yaml
+>nodeSelector:
+>  size: large
+>```
+
+More complex requirements you can achieve with affinity concept.
+
+### Node Affinity
+
+Node Selector are fine, but what if i want to put a pod on a large or medium node, or i want to put a pod on a not a small node?
+
+Add in `spec` in pod definition file
+
+```yaml
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoreDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: size
+          operator: In
+          values:
+          - large
+          - medium
+```
+
+OR
+
+```yaml
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoreDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: size
+          operator: NotIn
+          values:
+          - small
+```
+
+Check docs for more `operator` 
+
+The long sentence is a Affinity type. Check the docs.
+
+`required` - restricts a node for pod
+
+`preffered` - try your best to match expression and if there are no nodes place it where you want
+
+`DuringExecution` vs. `DuringScheduling` tells what happens with running pods.
+
+​	

@@ -1,6 +1,8 @@
 # CKA Hands-on practice
 
-## Pods
+## Introduction
+
+### Pods
 
 Check the pods
 
@@ -71,7 +73,7 @@ Get yaml file from from pulled pod, but do not run itwith `run` command
 kubectl run redis --image=redis --dry-run=client -o yaml > <yaml-file>
 ```
 
-## Replicasets
+### Replicasets
 
 ```sh
 kubectl get replicasets
@@ -132,7 +134,7 @@ Change replicas number withlut chaning the definition file.
 kubectl scale replicaset --replicas=<x> <replicaset-name>
 ```
 
-## Deployments
+### Deployments
 
  ```sh
  kubectl get deployments
@@ -172,7 +174,7 @@ spec:
 Create deployment 
 
 ```sh
-kubectl create deployment <name> --image=<image-name>
+kubectl create deployment <name> --image=<image-name> --replicas=<x>
 ```
 
 Scale its replicas
@@ -187,7 +189,7 @@ Get YAML definition file of a specified deployment
 kubectl create deployment --image=<image-name> <deployment-name> --replicas=<x> --dry-run=client -o yaml > output.yaml
 ```
 
-## Services
+### Services
 
 get services
 
@@ -213,7 +215,7 @@ And then:
 kubectl apply -f <file-name.yaml>
 ```
 
-## Namespaces
+### Namespaces
 
 list namespaces
 
@@ -245,7 +247,7 @@ get pods from all namespaces
 kubectl get pods --all-namespaces
 ```
 
-## Imperative vs declarative
+### Imperative vs declarative
 
 Create pod and a cluster ip service for it
 
@@ -260,3 +262,154 @@ kubectl expose --type=ClusterIP --name=<service-name> --port=80 --target-port=80
 > kubectl create deployment redis-deploy --image=redis --namespace=dev-ns --dry-run=client -o yaml > elo.yaml
 > ```
 
+## Scheduling
+
+### Manual scheduling
+
+Check running kubernetes components like (kube controller manager, kube-proxy etc.)
+
+```sh
+kubectl get pods -n kube-system 
+```
+
+Manually schedule pod on the given node
+
+First delete existing pod, then update its definition file with adding `node` key in `spec` with value set as node name.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+	name: nginx
+spec:
+	containers:
+	- image: nginx
+	  name: nginx
+	node: node01
+```
+
+```sh
+kubectl delete pod <pod-name>
+vi <pod-def-file>
+kubectl apply -f <pod-def-file>
+```
+
+### Labels and selectors
+
+Show labels available 
+
+```sh
+kubectl get pods --show-labels
+```
+
+Use selector to filter pods with specific labels
+
+```sh
+kubeclt get pods --selector <key>=<value>
+```
+
+Same you can do with
+
+```sh
+kubectl get pods -l <key>=<value>
+```
+
+Filter all object by labels
+
+```sh
+kubectl get all -l <key>=<value>
+```
+
+Fiter by multiple labels
+
+```sh
+kubectl get pods -l <key1>=<value1>,<key2>=<value2>..
+```
+
+>```sh
+>kubectl et pods --selector env=prod,bu=finance,tier=frontend
+>```
+
+> bu - business unit
+
+### Taints and Tolerations
+
+Add a taint for node
+
+```sh
+kubectl taint nodes <node-name> <key>=<value>:<taint-effect>
+```
+
+**taint-effect** determines what happens to pod if it is intolerate for the taint. Can take 3 values:
+
+- NoSchedule - pod cannot be scheduled on the node
+- PreferNoSchedule - kube-scheduler will try to schedule pod on the other node, but its not guaranteed
+- NoExecute - pod cannot be scheduled on the node and pods currently placed on node are killed  
+
+>```sh
+>kubectl taint nodes node1 app=blue:NoSchedule
+>```
+
+To add toleration to the pod just add `tolerations` section to the `spec` in pod definition file.
+
+```yaml
+tolerations:
+- key: "app"
+  operator: "Equal"
+  value: "blue"
+  effect: "NoSchedule"
+```
+
+Get nodes
+
+```sh
+kubectl get nodes
+```
+
+Check node taints
+
+```sh
+kubectl describe node <name> | grep Taints
+```
+
+To untaint the node just do:
+
+```sh
+kubectl taint nodes <node-name> <key>=<value>:<taint-effect>
+```
+
+> Same as taint but `-` at the end
+
+Check on which node the pod is:
+
+```sh
+kubectl desrbice pod <name> | grep Node
+```
+
+```sh
+kubectl get pods -o wide
+```
+
+## Node Affinity
+
+check node labels
+
+```sh
+kubectl get nodes --show-labels
+```
+
+check on which node pods are running
+
+```sh
+kubectl get pods -o wide
+```
+
+get definitions-file for some deployment
+
+```
+kubectl create deployment <name> --image=nginx --replicas=6 --dry-run=client -o yaml > elo.yaml
+```
+
+Here is the example to copy into file
+
+https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
