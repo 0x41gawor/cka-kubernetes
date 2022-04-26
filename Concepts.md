@@ -335,3 +335,268 @@ kubectl logs -f <pod-name>
 
 If pod has multiple containers you will need to specify the container name.
 
+# App lifecycle
+
+### Rollout and versioning
+
+When you create a deployment it triggers a **rollout**. A new rollout creates **deployment revision**.
+
+When the container version is upgraded a new rollout is triggered (and new revision with it).
+
+This tracks changes in version and enables to go back to previous revision if necessary.
+
+```
+kubectl rollout status <deployment-name>
+```
+
+```sh
+kubectl rollout history <deployment-name>
+```
+
+### Deployment strategies
+
+Lets say you have replicaset of your app. First strategy is to destroy all pods, and then run new ones with new version. The problem is that for some time app is unaccesible for users. This is called **Recreation stratey** and it is not default and recommended.
+
+The second one is to bring down pods and run new (with newer versions) one by one. App is newer down it is called **Rolling update** and this is the default deployment strategy.
+
+ To trgier a new rollout you just modify deployment-definition file and execute `kubectl apply -f`
+
+The second (imperative) way is to run `kubectl update image` on deployment
+
+### Rollback an update
+
+```sh
+kubectl rollout undo <deployment-name>
+```
+
+K8s will destroy pods in the new replicaset and run the ones from old replicaset.
+
+## Configuring apps
+
+### Docker 
+
+Remeber that container lives as long as a task/process in it is not done. Containers unlike VM are not meant to host an operating system.
+
+Thats why when you run pure OS image it will stop in a seconds. `docker run ubuntu`
+
+Thats also why container stops after app in it crashes.
+
+The `CMD` command in dockerfile defines the task/process that runs in a container
+
+> In ubuntu image the CMD is `bash`. bash is a shell which listens to commands from terminal, and if it finds none it just exits.
+
+You can override the CMD from dockerfile during run command.
+
+```sh
+docker run ubuntu sleep 5
+```
+
+> This will stop container after 5 seconds.
+
+To make this permanent you can do your own Dockerfile with CMD
+
+```dockerfile
+FROM ubuntu
+CMD sleep 5
+```
+
+```sh
+docker build -t ubuntu-sleeper .
+```
+
+But the `5` is hardcoded, how to make the container parametrizable. So we can use something like
+
+```sh
+docker run ubuntu-sleeper 10
+```
+
+And thats where **Entrypoint** command comes into play.
+
+```dockerfile
+FROM ubuntu
+ENTRYPOINT ["sleep"]
+```
+
+And whatever you specify in run after image name will be appended into entrypoint :smile:
+
+Thats the difference between CMD and ENTRYPOINT.
+
+But how to specify the default value passed to entrypoint? That way:
+
+```dockerfile
+FROM ubuntu
+ENTRYPOINT ["sleep"]
+CMD ["5"]
+```
+
+**overriding entrypoint**
+
+But what if you really want to override entrypoint command?
+
+```sh
+docker run  ubuntu-sleeper 10 --entrypoint sleep2.0
+```
+
+In the next chapter we will cover how to do this in Kubernetes.
+
+### K8s
+
+Let's create pod definition file from image created in last chapter.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ubuntu-sleeper-pod
+spec:
+  containers:
+  - name: ubuntu-sleeper
+    image: ubuntu-sleeper
+```
+
+How pass an argument  to `docker run` in pod-definition file? This way:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ubuntu-sleeper-pod
+spec:
+  containers:
+  - name: ubuntu-sleeper
+    image: ubuntu-sleeper
+    args: ["10"]
+```
+
+but hot to override ENTRYPOINT?
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ubuntu-sleeper-pod
+spec:
+  containers:
+  - name: ubuntu-sleeper
+    image: ubuntu-sleeper
+    command: ["sleep2.0"]
+    args: ["10"]
+```
+
+<img src="img/12.png" style="zoom:55%;" />
+
+
+
+### Environment variables
+
+```sh
+docker run simple-web-app -e APP_COLOR=pink, APP_MODE=prod
+```
+
+In K8s:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-web-app-pod
+spec:
+  containers:
+  - name: simple-web-app
+    image: simple-web-app
+    env: 
+      - name: APP_COLOR
+        value: pink
+      - name: APP_MODE
+        value: prod
+```
+
+### Config maps
+
+These are files to specify app configuration. It helps a lot if you have tons of configuration possible.
+
+ConfigMap file:
+
+```yaml
+apiVersion: v1
+kind: Config
+metadata:
+	name: simple-web-app-config-1
+data:
+APP_COLOR: pink
+APP_MODE: prod
+```
+
+Pod defitniion file:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-web-app-pod
+spec:
+  containers:
+  - name: simple-web-app
+    image: simple-web-app
+    envFrom: 
+    - configMapRef:
+        name: simple-web-app-config-1
+```
+
+```sh
+kubectl get configmaps
+kubect describe configmap <name>
+```
+
+### Secrets
+
+Lets say you have an app that connects to the database. It would be stupid to have user and password hardcoded. But it would be stupid to store password in a plain text like config map does it.
+
+**Secret** is just a config map but values are hashed. In files you just write `secret` instead of `configMap`
+
+## Scaling apps
+
+### Multicontainer pods
+
+Microservices help you build scalable apps where app is built from independent, one-purpose services. 
+
+But sometimes you need a pod with two containers in it, that share the same lifecycle. For example a pod with web-server and log-agent linked to it. 
+
+Containers in the same pod share the same network space (so they refer to each other as localhost), the same file system (storage volumes). This way you don't need to establish volume sharing or services between apps.
+
+To run a multicontainer pod just add new containers into `containers` array in `specs` of pod-definition file.
+
+### Initcontainers
+
+In multicontainer pod each container is expected to run a process all the time along with its compan. When one process dies it kills the whole pod.
+
+But somethimes we may have a uses when we need additional container in a pod that does some job and then exits. For example it can host a process that pulls a code from remote repository compiles it, stores binaries in volume and says goodbye. Then the second (main) container use these binaries to run his processes and lives as long as possible.
+
+Here the **initContainer** comes to play. These container are meant just to do some work at the start of a pod and say goobye.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+  labels:
+    app: myapp
+spec:
+  containers:
+  - name: myapp-container
+    image: busybox:1.28
+    command: ['sh', '-c', 'echo The app is running! && sleep 3600']
+  initContainers:
+  - name: init-myservice
+    image: busybox
+    command: ['sh', '-c', 'git clone <some-repository-that-will-be-used-by-application> ; done;']
+```
+
+If multiple initContainers are defined K8s will run them sequentially. If any one of them fails K8s will restart the pod repeatedly until the initContainer succeeds.
+
+### Self healing apps
+
+K8s supports self-healing apps through ReplicaSets. RepicaSet just ensure that certain amount of pod copies will run within the cluster.
+
+K8s also provides additional support to check the health of application running in pods and take necessary actions through Liveness and Readiness probes. But this topic is for developers, not K8s Admins :((.
+
