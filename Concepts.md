@@ -185,7 +185,7 @@ You can label nodes and then use this labels in pod-definition file so kube-sche
 
 More complex requirements you can achieve with affinity concept.
 
-### Node Affinity
+## Node Affinity
 
 Node Selector are fine, but what if i want to put a pod on a large or medium node, or i want to put a pod on a not a small node?
 
@@ -228,4 +228,110 @@ The long sentence is a Affinity type. Check the docs.
 
 `DuringExecution` vs. `DuringScheduling` tells what happens with running pods.
 
-​	
+## Taints and Tolerations & Node Affinity
+
+You can combine these two mechanisms to reach your goal.
+
+- Use Node Affinity in POD to restrict some nodes 
+- Use Taints and Tolerations to in NODE restrict some pods 
+
+## Resources
+
+By default kube-scheduler assumes pod requests at least:
+
+- 0.5 cpu
+- 256 Mi RAM
+
+But you can change this values in pod-definition file in `spec.containers`
+
+```yaml
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: 1
+```
+
+By default kubernets limits resources for pod with:
+
+- 1 cpu
+- 512 Mi RAM
+
+But you can change the limits in pod-definition in `spec.containers`
+
+```yaml
+resources:
+  limits:
+    memory: "2Gi"
+    cpu: 2
+```
+
+## Deamon sets
+
+The deamon set ensures that one copy of the pod is always present in all nodes in the cluster.
+
+> Use case is a monitoring agent or a log agent.
+>
+> K8s uses `kube-proxy` as a deamon set
+
+The deamonset definition file resembles the replicaset definition file.
+
+> Replica set ensures certain amount of pods will be in the cluster, while deamon set ensures one copy of certain pod per node
+
+## Static pods
+
+On your host where you have a container-engine (Docker) you can install only `kubelet` no Kubernetes cluster at all.
+
+And you can specify some path for the `kubelet` when you can put pod-definition files and kubelet will take care of ensuring that one pod per file always exists.
+
+<img src="img/9.png" style="zoom:75%;" />
+
+> You cannot create replicasets, services etc. this way. Remember that `kubelet` works only on pod level and this is the only object it understands.
+
+The pods created this way are called static.
+
+Of course you cannot use `kubectl` to get the running pods. `kubectl` works by `kube-apiserver` which is not installed. Use just `docker ps`.
+
+**but**
+
+But if you will join this host as a node to a k8s cluster the pods will be visible by k8s (visible, but not editable).
+
+**usecase**
+
+since static pods are not dependent on k8s control plane you can use static pod to deploy the control plane components itself :D
+
+Thats how the `kubeadm` sets up a K8s cluster.
+
+**vs deamon sets**
+
+<img src="img/10.png" style="zoom:75%;" />
+
+## Multiple schedulers
+
+K8s is highly extensible and you can have your own scheduler with custom checks in it. You can write own scheduler, package it and deploy in your cluster as default or additional scheduler.
+
+Scheduler have its names and in pod-defitnion you can specify scheduler for pod.
+
+# Logging and monitoring
+
+## Cluster components
+
+There is a Metrics Server in K8s which stores in-memory (not on disk) metrics about nodes, pods etc.
+
+Metrics like consumed RAM, cpus etc.
+
+`kubelet` (which is on each node) has component `cAdvisor` which is responsible for retrieving performance metrics from pods.
+
+You can install Metrics Server with minikube or you can get opensource metrics systems (Prometheus, ElasticSearch etc.) from gihub and deploy them with `kubectl apply -f`
+
+<img src="img/11.png" style="zoom:75%;" />
+
+After you have any metrics system you can use for example `kubectl top node` to show nodes performance or `kubectl top pod`
+
+## Pods
+
+```
+kubectl logs -f <pod-name>
+```
+
+If pod has multiple containers you will need to specify the container name.
+
