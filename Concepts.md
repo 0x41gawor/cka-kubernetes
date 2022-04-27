@@ -600,3 +600,38 @@ K8s supports self-healing apps through ReplicaSets. RepicaSet just ensure that c
 
 K8s also provides additional support to check the health of application running in pods and take necessary actions through Liveness and Readiness probes. But this topic is for developers, not K8s Admins :((.
 
+# Cluster maintenance
+
+## OS upgrades
+
+Scenario when you need to take down one of your node for example to upgrade OS on it.
+
+When one of nodes goes down (along with pods in them) kubernetes waits for 5 mins. After 5 mins K8s sees pods from that node as dead and recreates them on the other nodes (if replicaset was applied). This 5 mins are called **pod eviction timeout**.
+
+With that in mind if you just need to reboot your node or any other action that takes less than 5 mins, you can do it without any additional steps. After reboot K8s will fire node assigned pods again. 
+
+But if you are not sure about time reboot takes you should do it more safe way. You can **drain** the node, which moves its pods to another nodes and the node is marked as unscheduleable. Durint this node state, you can reboot your node. When it comes back it is you need to **uncordon** it to be schedulable again. But remember the previous pods don't autotically fall back on previous node (there is no  info in K8s to do so).
+
+Since you know drain and uncordn there is third one - **cordon**. It just makes node unschedulable, but do not remove pods from it.
+
+## K8s versions
+
+```sh
+kubectl get nodes
+```
+
+You can see the k8s version under version column. 
+
+>  Note that each node can have different version installed
+>
+> kube-apiserver get output of `kubectl get nodes` from `kubelet`s on each node, you you won't see master node if you've chosen not to install it on master node.
+
+K8s follows standard software versioning .
+
+<img src="img/13.png" style="zoom:55%;" />
+
+ETCD and CoreDNS have different versions as these are separate projects.
+
+## Backup and restore
+
+​	
