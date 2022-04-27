@@ -634,4 +634,114 @@ ETCD and CoreDNS have different versions as these are separate projects.
 
 ## Backup and restore
 
-​	
+Backup candidates:
+
+- Resource configuration (pods, replicasets etc., done by declarative approach)
+- etcd
+- persistent volumes
+
+### Resources
+
+Declarative is very easy to backup, you can even github with your team etc. But what if someone anyway without sticking to standards creates something with the imperative way? 
+
+Good way is to query kube-api-server for every object living in cluster. It is done by
+
+```sh
+kubectl get all --all-namespaces -o yaml > all.yaml
+```
+
+ But it will not be everything anyway. And of course there are solutions that already exist - Velero for example.
+
+### etcd
+
+It stores info about the state of the cluster - the cluster itself, nodes, and every resource living inside it. So instead of backing resources itself maybe better to just backup etcd. Etcd comes with snapshots solution.
+
+Later you can stop your kube-api-server, restore etcd from backupsnapshot and restart the kube-api-server.
+
+### Summary
+
+So there are two ways of doing backup
+
+- one by querying kube-api-server
+- second by snapshoting etcd
+
+# Security
+
+## Security primitives
+
+Lets begin with the cluster hosts. Of course access to this host must be secured, root access disabled, password based auth disabled, and only SSH key based auth available. Additionally any other measures to secure physical/virtual infra needs to be done. But *we will focus on Kubernetes security* itself.
+
+**kube-api-server**
+
+As you know api-server is center point of all operation on K8s cluster. We access it by `kucetl` or by accessing api directly and thorugh that you can perform almost any operation on the cluster, so securing api-server is important.
+
+We need to make two types of decisions:
+
+- Who can access it
+- What can they do
+
+**authentication**
+
+Who can access is done by authentication mechanism. 
+
+There are different ways you can auth into api-server:
+
+- Username and password stored in static files
+- Username and tokens stored in static files
+- Certifates 
+- External auth providers (LDAP etc.)
+- Service Account - for machines, not people
+
+**authorization**
+
+What can they do is done by authorization mechanism
+
+In api-server it is implemented by
+
+- RBAC (Role Based Access Control). Users are associated yo groups with specific permissions.
+
+- ABAC (Attribute Based access Control)
+- Node Authorization
+- Webhook mode
+
+**TLS certificates**
+
+<img src="img/14.png" style="zoom:55%;" />
+
+Each communication between control plane elements or node-runnig kubelet, kube-proxy and kube-apiserver is secured using TLS encryption.
+
+**Network policies**
+
+By default all the cluster pods can access all other pods withing the cluster. You can restrict access between then using Network Policies.
+
+## Authentication
+
+There are various users that are accessing cluster:
+
+- Admins
+- Developers
+- Bots (Other programs, processes, service that require access to cluster (e.g. for integration purposes))
+
+> Security of end users accesing apps deployed on the cluster is managed on the application themselves internally.
+
+K8s does not manage user accounts it relies on external sources (files, certificates, ldap etc.) 
+
+>  So you can't create user accounts in K8s (but you can create service accounts)
+
+*we will focus on human access (admin and developers)*
+
+All user access is managed by kube-api-server
+
+<img src="img/15.png" style="zoom:55%;" />
+
+kube-apiserver first authenticates user before processing the request.
+
+**Files authentication**
+
+To implement file authentication you just simply create `.csv` file with columns `password, username, userId` and pass the file name as an option to kube-apiserver `--basic-auth-file=user-details.csv` or if you are using `kubeadm` tool passs this as command to kube-apiserver pod definition file and and kubeadm will restart while you update the file.
+
+To implement file with tokens do the same but option is called `token-auth-file=<filename>`
+
+And in HTTP request you will need to add auth header with value "Bearer: <token>".
+
+> It is the most insecure method (passwords in plain text xD)
