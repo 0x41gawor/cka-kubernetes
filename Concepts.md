@@ -892,3 +892,125 @@ Public Keys (certificates) are usually named with `.crt` or  `.pem`
 
 Private keys are usually named with `.key`  or `-key.pem`
 
+<img src="img/21.png" style="zoom:55%;" />
+
+## TLS in Kubernetes
+
+So we now now, that the CAs has certificates knows as **root certificates**, a server has certificates called **server certificates**, and server can request certificates from client - **client certificates**.
+
+Kubernetes cluster has a set of nodes (master and worker nodes). All communication between these nodes needs to be secured and encrypted. For example admin with kube-api-server must establish a TLS connection same as communication between all components in cluster.
+
+So we need Server certificates for servers and client certificates for clients in cluster.
+
+Servers:
+
+- kube-api 
+  - apiserver.crt, apiserver.key
+- etcd server
+  - etcsserver.crt, etcdserver.key
+- kubelet 
+  - kubelet.crt, kubelet.key
+
+Clients:
+
+ - admin via kubectl  ---> kube-api-server
+   - admin.crt, admin.key
+ - kube-scheduler   ---> kube-api-server
+   - scheduler.crt, scheduler.key  
+ - kube-controller-manager ---> kube-api-server
+   - controller-manager.crt, controller-manager.key
+ - kube-proxy ---> kube-api-server
+   - kube-proxy.crt, kube-proxy.key
+
+> kube-api server is the only component that talks to etcd-server
+
+- kube-api ---> etcd server
+  - it can use the same pair of keys as it used for being server
+- kube-api ---> kubelet
+  - it can use the same pair of keys or generate new ones
+
+<img src="img/22.png" style="zoom:55%;" />
+
+That is a lot of certificates, lets group them
+
+<img src="img/23.png" style="zoom:55%;" />
+
+And also remember we need a CA to sign these certificates.
+
+K8s requires you to have at least 1 certificate.
+
+## Create a cert for cluster
+
+Tools:
+
+- easyrsa
+- openssl
+- cfssl
+
+we will use `openssl`
+
+### Create CA:
+
+****
+
+Create a key
+
+```sh
+openssl genrsa 	-out ca.key 2048
+```
+
+create Certificate Signing Request
+
+```sh
+openssl req -new -key ca.key -subj "/CN=KUBERNETES-CA" -out ca.csr
+```
+
+`-subj` tells for what we are requesting the cert
+
+sign the certificate
+
+```sh
+openssl x509 -req -in ca.csr -signkey ca.key -out ca.crt
+```
+
+Now we have our certificate
+
+<img src="img/24.png" style="zoom:55%;" />
+
+ ### Create client certs
+
+Generate admin key
+
+```sh
+openssl genrsa -out admin.key 2048
+```
+
+create Certificate Signing Request
+
+```sh
+openssl req -new -key admin.key -subj "/CN=kube-admin/O=system:masters" -out admin.csr
+```
+
+sign with previous created ca key pair
+
+```sh
+openssl x509 -req -in admin.csr -CA ca.csr -CAkey ca.key -out admin.crt
+```
+
+Now generate certs for other clients.
+
+#### How to use generated admin cert?
+
+Now instead of login and password you can use the certificate to authorize
+
+```sh
+curl https://kube-apiserver:6443//api//v1//pods --key admin.key --cert admin.crt --cacert ca.crt
+```
+
+#### Note on clients
+
+Remember that in Inernet web browsers has certs from CA built in. So you will need to manually do the same thing in your cluster - distribute you `ca.crt` through the nodes.
+
+### Create server certs
+
+//TODO i will not use certs in my kubernetes so...
