@@ -1014,3 +1014,25 @@ Remember that in Inernet web browsers has certs from CA built in. So you will ne
 ### Create server certs
 
 //TODO i will not use certs in my kubernetes so...
+
+## Authorization
+
+learn about `can-i` command
+
+## Network Policies
+
+Network policy applies to a pod and it says "Only allow a network traffic from a pod XX on port YY".
+
+> Use case would be to block direct communication between db pod and frontend app pod. To do this you can tell db to allow only network traffic from `backend pod` on port `3306`.
+>
+> > 3306 - my sql default port
+
+By default all pods in cluster are connected via the virtual netwrok with policy `AllowAll`.
+
+Ingress - icoming traffic
+
+Egress - outcoming traffic
+
+If you allow incoming traffic on some port, responses made for requests on this port will be allowed automatically.
+
+With network policies you not only restrict traffic from pods but even ip adresses (`ipBlock`).
