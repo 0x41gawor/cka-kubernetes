@@ -745,3 +745,150 @@ To implement file with tokens do the same but option is called `token-auth-file=
 And in HTTP request you will need to add auth header with value "Bearer: <token>".
 
 > It is the most insecure method (passwords in plain text xD)
+
+## TLS Certificates
+
+Is used to guarantee trust between two parts in a transaction. Certificate assures that communication between user and the server is encrypted and the server is who it says it is.
+
+Without encryption User Credentials would be sent with plain text and hackers can easily sniff them. 
+
+To encrypt something we use keys.
+
+A key is a set of random numbers. When you add key and mix with data you credentials cannot be recognized. Sniffers cannot do anything with it.
+
+However the server cannot encrypt the data without the key. We can send key with our data, and it is called **Symmetric encryption**. Note that key is sent through the same network so it can be sniffed. If Hacker knows the encryption format he can decrypt the data anyway. And thats where **Asymmetric encryption** comes in.
+
+Instead of using the same key to encrypt and decrypt the data. We have a private key and public key. The public key works kind of like a lock more.
+
+Public key can only lock something, but cannot unlock it. It can only be unclocked by matching private key.
+
+ You can generate private and public keys with
+
+```sh
+$ ssh-keygen
+$ ls
+id_rsa id_rsa.pub
+```
+
+which creates two files.
+
+Then you can secure your server by locking down all access to it, except through a door that is locked using your public key. You can do that by having a file with authorized keys
+
+```sh
+cat ~/.ssh/authorized_keys
+FSFSDFSDFfsffsdafsfsaff.sopadfmsdalf,2930rfhuwq
+fdsanfuibnfg9ie3qnh980hfasdmoifknUIJFSJFFSJFUIS
+...
+```
+
+Private key is only always with you on your laptop.
+
+If you want to ssh you need to specify your private key location:
+
+```sh
+ssh -i id_rsa user1@server1
+```
+
+> If you want next user to have access to server, he can generate his pair of keys and you can insert his public key to the `authorized_keys` file
+
+### Assymetric encryption
+
+With **public key** you can encrypt some data, and with matching **private key** you can decrypt it.
+
+So how to transfer symmetric key over the network with usage of asymmetric encryption, so hacker cannot decrypt data?
+
+<img src="img/16.png" style="zoom:55%;" />
+
+The goal is to user and server use symmetric encryption.
+
+0. Users creates the symmetric key
+
+1. Create key pair on a server
+
+   ```sh
+   openssl genrsa -out my-bank.key 1024
+   ```
+
+2. When user access the Web server first time using `https` he gets the public key from the server
+
+   1. Sniffer also gets a copy of public key.
+
+3. Now the user uses public key from server to encrypt his symmetric key.
+
+4. User sends encrypted symmetric key to the server
+
+   1. Sniffer gets this message but has no private key to decrypt it
+
+5. Server uses the private key to decrypt the message and obtain symmetric key from user
+
+6. Now both user and server has symmetric key and can encrypt with it the data
+
+   1. Hacker does not have the symmetric key (only a encrypted message with it inside) to decrypt the sniffed data
+
+<img src="img/17.png" style="zoom:55%;" />
+
+ 
+
+### New hacker ways
+
+The only way now the hackey can get you credentials is to you send him it in a plain text. So he creates an exactly the same looking website. Then hacker hosts the website on his own server and he want you to think its secure so he also generates pair of keys etc..
+
+And finally somehow he manages to feed you with his server address, or routes your request to his server. Form now on everything goes as on the example above but this is not the bank server !!!
+
+How to resolve this?
+
+What if you can look  at the public key (the one generated on server) you receive and examine if it is a legitimate key from a real bank server.
+
+So actually server does not send the key alone. It sends the certificate that has a key inside. Certificate says who is the server owner, the server location etc.
+
+<img src="img/18.png" style="zoom:55%;" />
+
+But anyone can generate certificate like this. So how do you look if a certificate is legit?
+
+So the most important part is **who signed the certificate**. If you create a cerificate it will be signed by you and no web browser will trust you.
+
+<img src="img/19.png" style="zoom:55%;" />
+
+So how then you get a sign from someone trusted?
+
+<img src="img/20.png" style="zoom:55%;" />
+
+CAs are well known organisations tha can sign and validate certificates for you.
+
+So if you want to have legitimate website you generate CSR - Certificate Signing Request using the public key you generated. The CA verify you and once it checks out the sign the ceritificate and send it back. Now webbrowsers will trust your server.
+
+If a hacker want to sign a certificate his CSR will be rejected and web-browsers will not trust his servers.
+
+
+
+But how browsers know which CA are valid? Or if a certificate was signed by Symantec how to know if this is real Symantec?
+
+Well .. CAs have they own pair of keys. Private for signing certificates, and public which built into the browsers. The browsers uses the public key of a CA to validate if certificate is signed by valid CA.
+
+### Private certificates
+
+But browser has only public figures like banks, emails, etc.. however browsers does not help you validate sites hosted privately e.g. in your organization e.g. for accessing internail email or newsletter.
+
+Most of CAs have a private offering of their services. You can then have your public key of server installed on all your employees browsers.
+
+### PKI - Public Key Infrastructure
+
+This whole infrastructure including the CIA, the servers, the people, keys and generatring, distributing and maintaning difital certificates is known as **Public Key Infrastructure** 
+
+### Note on the keys
+
+We have two keys:
+
+- public
+- private
+
+If ENcrypt data with one, the you cannot do it with the second. Soo be careful.
+
+Keys are two related, paired keys. You can ENCRYPT data with one of them and DECRYPT data only with the other. You cannot encrypt and decrypt with the same key.
+
+### Note on naming
+
+Public Keys (certificates) are usually named with `.crt` or  `.pem`
+
+Private keys are usually named with `.key`  or `-key.pem`
+
